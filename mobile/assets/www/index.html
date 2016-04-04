@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>drkNo&iuml;d v1.0</title>
+        <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
+	 	<link rel="stylesheet" href="jquery.mobile/jquery.mobile-1.0.1.min.css" />
+		<link rel="stylesheet" href="index.css" /> 
+	    <script src="jquery.mobile/jquery-1.6.4.min"></script>
+		<script src="jquery.mobile/jquery.mobile-1.0.1.min.js"></script>
+		<script type="text/javascript" charset="utf-8" src="phonegap.0.9.6.min.js"></script>
+		<script type="text/javascript" charset="utf-8" src="index.js"></script>
+    </head>
+	<script type="text/javascript"> 
+		var CONTEXT;
+		var THREAD;
+		var THE_WALL;
+		var LINES = 16;
+		var COLUMNS = 8;
+		
+	    var SCREEN_WIDTH = $(window).width(); - 20;
+		var SCREEN_HEIGHT = $(window).height(); - 50; 
+		var BOX_SPACE = 2;
+		var BOX_WIDTH = Math.floor(SCREEN_WIDTH / COLUMNS) - BOX_SPACE;
+		var BOX_HEIGHT = Math.floor(SCREEN_HEIGHT * 0.6 / LINES) - BOX_SPACE;
+		var BOX_COLOR = ["#D9C38A", "#88502F", "#402A12", "#4F4F4F"];
+
+		var GAME_ZONE_WIDTH = (BOX_WIDTH + BOX_SPACE) * COLUMNS;
+		var GAME_ZONE_HEIGHT = SCREEN_HEIGHT;
+		
+		var PADDLE_WIDTH = Math.floor(GAME_ZONE_WIDTH * 0.2);
+		var PADDLE_HEIGHT = Math.floor(GAME_ZONE_HEIGHT / 60);
+		var PADDLE_SPEED = Math.floor(GAME_ZONE_WIDTH * 0.04);
+		var PADDLE_DIRECTION = 0;
+		var PADDLE_COLOR = "#F0F0F0";
+		var PADDLE_X = 	(GAME_ZONE_WIDTH / 2) - (PADDLE_WIDTH/2);
+		var PADDLE_Y = (GAME_ZONE_HEIGHT - PADDLE_HEIGHT);
+		
+		var BALL_DIMENSION = 4;
+		var BALL_SPEED = 0;
+		var BALL_COLOR = "#16A6DB";	
+		var BALL_DIRECTION_X = 1;
+		var BALL_DIRECTION_Y = -1;
+		var BALL_X = Math.floor(GAME_ZONE_WIDTH / 2);
+		var BALL_Y = Math.floor(GAME_ZONE_HEIGHT*0.85);
+		var BALL_X_PREV = BALL_X;
+		var BALL_Y_PREV = BALL_X;
+		
+		var SCORE = 0;
+		var LIVES = 3;
+		var NEXT_LIFE = 5000;
+		var LEVEL = 1;
+		var LEVEL_MAX = 10;	
+		var WON = 0;
+	
+	/**
+	 * reactualisation de la taile de l'écran
+	 */ 
+	 function updateScreen() {
+	    SCREEN_WIDTH = $(window).width() - 10;
+		SCREEN_HEIGHT = $(window).height() - 50; 
+		BOX_WIDTH = Math.floor(SCREEN_WIDTH / COLUMNS) - BOX_SPACE;
+		BOX_HEIGHT = Math.floor(SCREEN_HEIGHT * 0.6 / LINES) - BOX_SPACE;
+		GAME_ZONE_WIDTH = (BOX_WIDTH + BOX_SPACE) * COLUMNS;
+		GAME_ZONE_HEIGHT = SCREEN_HEIGHT;
+		PADDLE_WIDTH = Math.floor(GAME_ZONE_WIDTH * 0.2);
+		PADDLE_HEIGHT = Math.floor(GAME_ZONE_HEIGHT / 60);
+		PADDLE_SPEED = Math.floor(GAME_ZONE_WIDTH * 0.03);		
+		PADDLE_Y = (GAME_ZONE_HEIGHT - PADDLE_HEIGHT);
+		BALL_DIMENSION = Math.floor((GAME_ZONE_HEIGHT < GAME_ZONE_WIDTH ? GAME_ZONE_HEIGHT : GAME_ZONE_WIDTH ) / 80);
+		if (BALL_DIMENSION < 3) BALL_DIMENSION = 3;
+		if (BALL_SPEED == 0) BALL_Y = GAME_ZONE_HEIGHT - PADDLE_HEIGHT - BALL_DIMENSION - 1;
+		document.getElementById('canvasElem').height = GAME_ZONE_HEIGHT;
+		document.getElementById('canvasElem').width = GAME_ZONE_WIDTH;
+	 }
+	 
+	/**
+	 * fonction d'initialisation du jeu
+	 */
+	function initGame() {
+
+		updateScreen();
+		
+		PADDLE_X = 	(GAME_ZONE_WIDTH / 2) - (PADDLE_WIDTH/2);
+		PADDLE_DIRECTION = 0;
+		
+		BALL_SPEED = 0;
+		BALL_COLOR = "#16A6DB";	
+		BALL_DIRECTION_X = 1;
+		BALL_DIRECTION_Y = -1;
+		BALL_X = Math.floor(GAME_ZONE_WIDTH / 2);
+		BALL_Y = GAME_ZONE_HEIGHT - PADDLE_HEIGHT - BALL_DIMENSION - 1;
+		BALL_X_PREV = BALL_X;
+		BALL_Y_PREV = BALL_X;
+		
+		SCORE = 0;
+		LIVES = 3;
+		NEXT_LIFE = 5000;
+		LEVEL = 1;
+		WON = 0;
+
+		start(true);
+	};	 
+	
+	/**
+	 * fonction qui lance le jeu
+	 */
+	function start(n) {
+		BALL_X = Math.floor(GAME_ZONE_WIDTH / 2);
+		BALL_Y = GAME_ZONE_HEIGHT - (PADDLE_HEIGHT + BALL_DIMENSION + 2);
+		BALL_DIRECTION_X = 1;
+		BALL_DIRECTION_Y = -1;
+		BALL_SPEED = 0;
+		WON = 0;
+		var elem = document.getElementById('canvasElem');
+		if (!elem || !elem.getContext) {
+			return;
+		}
+		CONTEXT = elem.getContext('2d');
+		if (!CONTEXT) {
+			return;
+		}
+		GAME_ZONE_WIDTH = elem.width;
+		GAME_ZONE_HEIGHT = elem.height;
+		PADDLE_X = (GAME_ZONE_WIDTH/2)-(PADDLE_WIDTH/2);
+		PADDLE_Y = (GAME_ZONE_HEIGHT-PADDLE_HEIGHT);
+		// on initialise le niveau
+		if (n) creerBriques(CONTEXT, LINES, COLUMNS, BOX_WIDTH, BOX_HEIGHT, BOX_SPACE);
+	  
+		// Boucle de rafraichissement du contexte 2D
+		THREAD = setInterval(refreshGame, 15);
+	  
+		// Gestion des évènements
+		window.document.onkeydown = checkDepla;
+	}
+	
+	/**
+	 * Rafraichissement du jeu
+	 */	
+	function refreshGame() {
+		
+		// On efface la zone
+		clearContexte(CONTEXT, 0, GAME_ZONE_WIDTH, 0, GAME_ZONE_HEIGHT);
+		updateScreen();
+		
+		// On réaffiche le nécessaire
+		WON = 1;
+
+		// Réaffichage des briques
+		for (var i=0; i < THE_WALL.length; i++) {
+			for (var j=0; j < THE_WALL[i].length; j++) {
+				val = THE_WALL[i][j];
+				if (THE_WALL[i][j] != 0) {
+					if (val < 0) CONTEXT.fillStyle = BOX_COLOR[3];
+					else CONTEXT.fillStyle = BOX_COLOR[val-1];
+					CONTEXT.fillRect((j*(BOX_WIDTH+BOX_SPACE)),(i*(BOX_HEIGHT+BOX_SPACE)),BOX_WIDTH,BOX_HEIGHT);
+					if (val > 0) WON = 0; // Le joueur n'a pas gagné, il reste toujours au moins une brique
+					var ligneY = Math.floor(BALL_Y/(BOX_HEIGHT+BOX_SPACE));
+					var ligneX = Math.floor(BALL_X/(BOX_WIDTH+BOX_SPACE));
+					if (j == ligneX && i == ligneY) {
+						if (val > 0) {
+							SCORE += 100
+							THE_WALL[i][j] = val-1;
+						}
+						else SCORE++;
+						i0 = Math.floor(BALL_Y_PREV/(BOX_HEIGHT+BOX_SPACE));
+						j0 = Math.floor(BALL_X_PREV/(BOX_WIDTH+BOX_SPACE));
+						if (i0==i) BALL_DIRECTION_X = -1*BALL_DIRECTION_X;
+						else if (j0==j) BALL_DIRECTION_Y = -1*BALL_DIRECTION_Y;
+						else {
+							BALL_DIRECTION_X = -1*BALL_DIRECTION_X;
+							BALL_DIRECTION_Y = -1*BALL_DIRECTION_Y;
+						}
+					}
+				}
+			}
+			
+		}
+		
+		// On vérifie si le joueur à gagné
+		if ( WON ) gagne();
+		
+		if ((PADDLE_X >= 0 && PADDLE_DIRECTION == -1) || 
+		(PADDLE_X + PADDLE_WIDTH <= GAME_ZONE_WIDTH && PADDLE_DIRECTION == 1)) {
+			PADDLE_X += PADDLE_DIRECTION * PADDLE_SPEED;
+			if (BALL_SPEED == 0) BALL_X += PADDLE_DIRECTION * PADDLE_SPEED;
+		}
+		// Réaffichage de la barre
+		CONTEXT.fillStyle = "#F0F0F0";
+		CONTEXT.fillRect(PADDLE_X,PADDLE_Y,PADDLE_WIDTH,PADDLE_HEIGHT);
+		
+		// Calcul de la nouvelle position de la balle
+		
+		if ( (BALL_X + BALL_DIRECTION_X * BALL_SPEED) >  GAME_ZONE_WIDTH || (BALL_X + BALL_DIRECTION_X * BALL_SPEED) <  0) {
+			BALL_DIRECTION_X = -1*BALL_DIRECTION_X;
+			SCORE += 1;
+		}
+		if ( (BALL_Y + BALL_DIRECTION_Y * BALL_SPEED) >  GAME_ZONE_HEIGHT) perdu();
+		else {
+			if ( (BALL_Y + BALL_DIRECTION_Y * BALL_SPEED) <  0) {
+				BALL_DIRECTION_Y = -1*BALL_DIRECTION_Y;
+				SCORE += 1;
+			}	
+			else {
+				if ( ((BALL_Y + BALL_DIRECTION_Y * BALL_SPEED) > PADDLE_Y) && ((BALL_X + BALL_DIRECTION_X * BALL_SPEED) >= PADDLE_X) && ((BALL_X + BALL_DIRECTION_X * BALL_SPEED) <= (PADDLE_X+PADDLE_WIDTH))) {
+					BALL_DIRECTION_Y = -1;
+					BALL_DIRECTION_X = 2*(BALL_X-(PADDLE_X+PADDLE_WIDTH/2))/PADDLE_WIDTH;
+					if (BALL_SPEED < 4) BALL_SPEED+=0.1;
+					SCORE += 10
+				}
+			}
+		}
+		BALL_X_PREV = BALL_X;
+		BALL_Y_PREV = BALL_Y;
+		BALL_X += BALL_DIRECTION_X * BALL_SPEED;
+		BALL_Y += BALL_DIRECTION_Y * BALL_SPEED;
+		
+		// Affichage de la balle
+		CONTEXT.fillStyle = BALL_COLOR;
+		CONTEXT.beginPath();
+	    CONTEXT.arc(BALL_X, BALL_Y, BALL_DIMENSION, 0, Math.PI*2, true);
+	    CONTEXT.closePath();
+	    CONTEXT.fill();
+	    
+	    // On gagne une vie ?
+	    if (SCORE > NEXT_LIFE) {
+			LIVES++;
+			NEXT_LIFE = NEXT_LIFE * 2;
+		} 
+	    // Affichage score
+	    document.getElementById("level").innerHTML = "LVL : " + LEVEL;
+	    document.getElementById("score").innerHTML = "SC : " + SCORE;
+	    document.getElementById("lives").innerHTML = "L : " + LIVES;
+	}
+
+	/**
+	 * On perd une vie
+	 */
+	function perdu() {
+		clearInterval(THREAD);
+	   	navigator.notification.vibrate(0);
+		LIVES -= 1;
+		if (LIVES <= 0) {
+			document.getElementById("score_final_p").innerHTML = SCORE;
+			$.mobile.changePage('#lose', 'slide', true, true);
+		}
+		else {
+			start(false);
+		}
+	}
+
+	/**
+	 * On passe au niveau suivant
+	 */
+    function nextLevel() {
+	    start(true);
+    }
+	
+	/**
+	 * On finit un tableau
+	 */
+	function gagne() {
+		clearInterval(THREAD);
+		LEVEL++;
+		if (LEVEL > LEVEL_MAX) {
+			document.getElementById("score_final").innerHTML = SCORE + LIVES * 1000;
+			$.mobile.changePage('#win', 'slide', true, true);
+		}
+		else {
+			navigator.notification.alert(
+				'Bienvenue au niveau '+LEVEL,  // message
+				nextLevel,         // callback
+				'Bravo',            // title
+				'Oui'                  // buttonName
+			);    
+		}
+	}
+	
+	/**
+	 * On efface la zone du jeu
+	 */ 
+	function clearContexte(ctx, startwidth, ctxwidth, startheight, ctxheight) {
+		ctx.clearRect(startwidth, startheight, ctxwidth, ctxheight);
+	}
+	
+	/**
+	 * fonction de creation d'un niveau
+	 */
+	function creerBriques(ctx, nbrLignes, nbrParLigne, largeur, hauteur, espace) {
+
+		if (LEVEL == 1) {
+			THE_WALL = [
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[1,1,1,1,1,1,1,1],
+				[1,1,1,1,1,1,1,1],
+				[1,1,1,1,1,1,1,1],
+				[1,1,1,1,1,1,1,1],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0]
+			];
+		}
+		else if (LEVEL == 2) {
+			THE_WALL = [
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[1,1,1,1,2,2,2,2],
+				[0,1,1,0,0,2,2,0],
+				[0,1,1,0,0,2,2,0],
+				[0,1,1,0,0,2,2,0],
+				[0,2,2,0,0,1,1,0],
+				[0,2,2,0,0,1,1,0],
+				[0,2,2,0,0,1,1,0],
+				[2,2,2,2,1,1,1,1],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0]
+			];
+		}
+		else if (LEVEL == 3) {
+			THE_WALL = [
+				[0,0,0,0,0,0,0,0],
+				[1,3,1,0,0,1,3,1],
+				[1,1,1,0,0,1,1,1],
+				[1,1,1,0,0,1,1,1], 
+				[1,1,1,0,0,1,1,1],
+				[1,1,1,0,0,1,1,1],
+				[0,0,2,2,2,2,0,0],
+				[0,0,0,2,2,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[2,2,2,2,2,2,2,2]
+			];
+		}
+		if (LEVEL == 4) {
+			THE_WALL = [
+				[1,1,1,1,1,1,1,1],
+				[1,1,1,1,1,1,1,1],
+				[0,1,2,2,2,2,1,0],
+				[0,1,2,2,2,2,1,0],
+				[0,0,1,2,2,1,0,0],
+				[0,0,1,2,2,1,0,0],
+				[0,0,0,1,1,0,0,0], 
+				[0,0,0,1,1,0,0,0], 
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[1,1,1,-1,-1,1,1,1],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[3,3,3,3,3,3,3,3],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0]
+			];
+		}
+		if (LEVEL == 5) {
+			THE_WALL = [
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,-1,2,2,2,2,-1,0],
+				[0,3,1,1,1,1,3,0],
+				[0,3,1,1,1,1,3,0],
+				[0,3,1,-1,-1,1,3,0],  
+				[0,3,1,1,1,1,3,0],
+				[0,3,1,1,1,1,3,0],
+				[0,-1,2,2,2,2,-1,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0]
+			];
+		}
+		if (LEVEL == 6) {
+			THE_WALL = [
+				[1,1,1,1,1,1,1,1],
+				[-1,-1,-1,-1,-1,-1,3,3],
+				[1,-1,1,-1,1,-1,1,1],
+				[0,0,0,0,0,0,0,0],
+				[1,1,1,1,1,1,1,1],
+				[3,3,-1,-1,-1,-1,-1,-1],
+				[1,1,-1,1,-1,1,-1,1,],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,2,2,0,0,0],
+				[3,3,2,2,2,2,3,3],
+				[0,0,0,2,2,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0]
+			];
+		}
+		if (LEVEL == 7) {
+			THE_WALL = [
+				[-1,-1,-1,3,3,-1,-1,-1],
+				[-1,-1,-1,3,3,-1,-1,-1],
+				[-1,-1,-1,2,2,-1,-1,-1],
+				[-1,1,-1,2,2,-1,1,-1], 
+				[-1,2,-1,1,1,-1,2,-1], 
+				[-1,3,-1,1,1,-1,3,-1],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],	
+				[1,3,3,2,2,3,3,1],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0]
+			];
+		}
+		if (LEVEL == 8) {
+			THE_WALL = [
+				[3,3,3,3,3,3,3,3],
+				[3,3,3,3,3,3,3,3],
+				[3,3,3,3,3,3,3,3],
+				[2,2,2,2,2,2,2,2],
+				[2,2,2,2,2,2,2,2],
+				[2,2,2,2,2,2,2,2],
+				[1,1,1,1,1,1,1,1],
+				[1,1,1,1,1,1,1,1],
+				[1,1,1,1,1,1,1,1],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0]
+			];
+		}
+		if (LEVEL == 9) {
+			THE_WALL = [
+				[2,1,3,0,0,3,1,2],
+				[2,1,3,0,0,3,1,2], 
+				[2,1,3,0,0,3,1,2], 
+				[2,1,3,0,0,3,1,2], 
+				[2,1,3,0,0,3,1,2],   
+				[2,1,3,0,0,3,1,2],   
+				[2,1,3,0,0,3,1,2],   
+				[-1,1,-1,1,1,-1,1,-1], 
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[2,2,2,2,2,2,2,2], 
+				[1,1,1,1,1,1,1,1],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0]
+			];
+		}
+		if (LEVEL == 10) {
+			THE_WALL = [
+				[1,1,1,1,1,1,1,1], 
+				[-1,1,1,1,1,1,1,-1], 
+				[-1,-1,2,2,2,2,-1,-1], 
+				[-1,-1,-1,3,3,-1,-1,-1], 
+				[-1,-1,-1,3,3,-1,-1,-1], 
+				[-1,-1,2,2,2,2,-1,-1], 
+				[-1,1,1,1,1,1,1,-1], 
+				[1,1,1,1,1,1,1,1], 
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,-1,-1,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0],
+				[1,2,3,3,3,3,2,1], 
+				[0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0]
+			];
+		}
+		
+		for (var i=0; i < nbrLignes; i++) {
+			
+			for (var j=0; j < nbrParLigne; j++) {
+				val = THE_WALL[i][j];
+				if (val != 0) {
+					if (val < 0) ctx.fillStyle = BOX_COLOR[3];
+					else  ctx.fillStyle = BOX_COLOR[val-1];
+					ctx.fillRect((j*(largeur+espace)),(i*(hauteur+espace)),largeur,hauteur);
+				}
+			}
+		}
+		
+		return 1;
+	}
+
+	/**
+	 * onMenubutton - evenement sur le bouton home 
+	 */
+	function onMenuButton() {
+		// en jeu on relache la balle
+	    if ($('#game').css('display') == 'block') {
+			 if (BALL_SPEED == 0) BALL_SPEED = 1.5;
+    	} 
+    	// sur le menu on débute le jeu
+	    else if ($('#menu').css('display') === 'block') {
+			$.mobile.changePage('#game', 'slide', true, true);
+			initGame();    	
+		} 
+    }
+
+	/**
+	 * fonction de gestion des boutons de la boite de confirmation
+	 */
+    function onConfirm(button) {
+        if (button == 1) {
+			$.mobile.changePage('#menu', 'slide', true, true);
+		}
+		else {
+			THREAD = setInterval(refreshGame, 15);
+		}
+    }
+
+	/**
+	 * onBackbutton - evenement sur le bouton retour 
+	 */
+	function onBackButton() {
+		// sur le menu on quitte l'application
+	    if ($('#menu').css('display') == 'block') {
+        	navigator.app.exitApp();
+        }
+        // pendant le jeu on demande si on veut quitter le jeu
+        else if ($('#game').css('display') == 'block') {
+			clearInterval(THREAD);
+			navigator.notification.confirm(
+				'Voulez vous quitter le jeu ?',  // message
+				onConfirm,              // callback to invoke with index of button pressed
+				'Sortir',            // title
+				'Oui,Non'          // buttonLabels
+			);    
+        }
+        // sinon on revient sur le menu
+        else {
+			$.mobile.changePage('#menu', 'slide', true, true);
+		}
+    }
+    
+	/**
+	 * onDeviceReady - mise en place des listeners
+	 */
+	 var onDeviceReady = function() {
+	    document.addEventListener("backbutton", onBackButton, true);
+	    document.addEventListener("menubutton", onMenuButton, true);
+ 	};
+    
+	/**
+	 * init - intialisation mise en place du listener deviceready
+	 */
+	function init() {
+    	document.addEventListener("deviceready", onDeviceReady, true);
+	}
+	
+	/**
+	 * les évènements sur l'écran tactile
+	 */
+	jQuery(document).ready(function(){
+		$('#pad_left').bind('vmousedown', function(e){
+			e.preventDefault();
+			PADDLE_DIRECTION = -1;
+			e.stopPropagation();
+		}); 
+		$('#pad_left').bind('vmouseup', function(e){
+			e.preventDefault();
+			PADDLE_DIRECTION = 0;
+			e.stopPropagation();
+		}); 
+		$('#pad_right').bind('vmousedown', function(e){
+			e.preventDefault();
+			PADDLE_DIRECTION = 1;
+			e.stopPropagation();
+		}); 
+		$('#pad_right').bind('vmouseup', function(e){
+			e.preventDefault();
+			PADDLE_DIRECTION = 0;
+			e.stopPropagation();
+		}); 
+	})	
+	
+	</script> 
+	<body style="overflow: hidden;" onload="init();">
+
+		<!-- page d'accueil -->
+		<div data-role="page" data-theme="a" id="menu">
+			<div data-role="header" data-position="inline"> 
+				<h1>drkNo&iuml;d v1.0</h1>
+				<a href="#help" data-icon="info" data-iconpos="notext" class="ui-btn-right">Help</a>
+			</div>	
+			<div data-role="content" style="text-align:center">
+				<a href="#game" onclick="initGame()" ><img src="images/title.png" /></a><br/><br/>
+				Pour jouer pressez la touche <em>"menu"</em> de votre t&eacute;l&eacute;phone.<br/>
+			</div>	
+		</div>
+
+		<!-- page d'aide -->
+		<div data-role="page" data-theme="a" id="help">
+			<div data-role="header" data-position="inline"> 
+				<h1>Aide</h1>
+				<a href="#menu" data-icon="arrow-l" data-iconpos="notext" class="ui-btn-right">Back</a>
+			</div>	
+			<div data-role="content" style="text-align:left">
+				<strong>drkNo&iuml;d v1.0</strong><br/>
+				par Philippe Bousquet.<br/>
+				<a href="http://darken33.free.fr/">http://darken33.free.fr/</a><br/>
+				<br/>
+				Ce jeu est bas&eacute; sur un script de <a href="http://www.lafermeduweb.net/tutorial/creer-un-jeu-en-html-canvas-et-javascript-13.html">"La Ferme Du Web"</a>.<br/>
+				<br/>
+				Pour jouer :
+				<ul>
+					<li>presser la partie gauche de l'&eacute;cran : aller &agrave; gauche</li>
+					<li>presser la partie droite de l'&eacute;cran : aller &agrave; droite</li>
+					<li>la touche menu : lancer la balle</li>
+				</ul>	
+				Ce jeu est un logiciel libre distribu&eacute; sous licence Gnu GPL v3.
+			</div>	
+		</div>
+
+		<!-- page du jeu -->
+		<div data-role="page" data-theme="a" id="game">
+			<div data-role="header" >
+				<div class="ui-grid-b">
+					<div class="ui-block-a" style="width: 25%" id="level">LVL : 1</div>
+					<div class="ui-block-b" style="width: 25%" id="lives">L : 3</div>
+					<div class="ui-block-c" style="width: 50%" id="score">SC : 0</div>
+				</div>	
+			</div>
+			<div id='conteneur' style="text-align: center; padding-top: 10px;">
+				<canvas id="canvasElem" width="240" height="260" style="border: #333 1px solid; background: BLACK;"> 
+				</canvas>
+				<div id="pad_left" style="position: fixed; bottom: 0; left: 0; width: 50%; height: 50%"></div>
+				<div id="pad_right" style="position: fixed; bottom: 0; right: 0; width: 50%; height: 50%"></div>
+			</div> 
+		</div>
+
+		<!-- page vous avez gagné -->
+		<div data-role="page" data-theme="a" id="win">
+			<div data-role="header" data-theme="a">
+				<h1>Gagn&eacute;</h1>
+				<a href="#menu" data-icon="arrow-l" data-iconpos="notext" class="ui-btn-right">Back</a>
+			</div>	
+			<div data-role="content" style="text-align: center;">	
+				Votre score : <strong><span id="score_final">0</span></strong><br/><br/>
+				<img src="images/winner.png" /><br/>
+			</div>
+		</div>
+
+		<!-- page vous avez perdu -->
+		<div data-role="page" data-theme="a" id="lose">
+			<div data-role="header" data-theme="a">
+				<h1>Perdu</h1>
+				<a href="#menu" data-icon="arrow-l" data-iconpos="notext" class="ui-btn-right">Back</a>
+			</div>	
+			<div data-role="content" style="text-align: center;">	
+				Votre score : <strong><span id="score_final_p">0</span></strong><br/><br/>
+				<img src="images/loser.png" /><br/>
+			</div>
+		</div>
+
+	</body>
+</html>
