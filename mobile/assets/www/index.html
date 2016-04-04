@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>drkNo&iuml;d v1.1</title>
+        <title>drkNo&iuml;d v1.2</title>
         <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
 	 	<link rel="stylesheet" href="jquery.mobile/jquery.mobile-1.0.1.min.css" />
 		<link rel="stylesheet" href="index.css" /> 
@@ -36,6 +36,7 @@
 		var PADDLE_Y = (GAME_ZONE_HEIGHT - PADDLE_HEIGHT);
 		
 		var BALL_DIMENSION = 4;
+		var BALL_SPEED_FACTOR = 1;
 		var BALL_SPEED = 0;
 		var BALL_COLOR = "#16A6DB";	
 		var BALL_DIRECTION_X = 1;
@@ -58,6 +59,7 @@
 	 function updateScreen() {
 	    SCREEN_WIDTH = $(window).width() - 10;
 		SCREEN_HEIGHT = $(window).height() - 50; 
+		BALL_SPEED_FACTOR = SCREEN_HEIGHT / 270;
 		BOX_WIDTH = Math.floor(SCREEN_WIDTH / COLUMNS) - BOX_SPACE;
 		BOX_HEIGHT = Math.floor(SCREEN_HEIGHT * 0.6 / LINES) - BOX_SPACE;
 		GAME_ZONE_WIDTH = (BOX_WIDTH + BOX_SPACE) * COLUMNS;
@@ -71,6 +73,12 @@
 		if (BALL_SPEED == 0) BALL_Y = GAME_ZONE_HEIGHT - PADDLE_HEIGHT - BALL_DIMENSION - 1;
 		document.getElementById('canvasElem').height = GAME_ZONE_HEIGHT;
 		document.getElementById('canvasElem').width = GAME_ZONE_WIDTH;
+		document.getElementById('img_lose').width = 128 * BALL_SPEED_FACTOR;
+		document.getElementById('img_title').width = 128 * BALL_SPEED_FACTOR;
+		document.getElementById('img_win').width = 128 * BALL_SPEED_FACTOR;
+		document.getElementById('img_lose').height = 128 * BALL_SPEED_FACTOR;
+		document.getElementById('img_title').height = 153 * BALL_SPEED_FACTOR;
+		document.getElementById('img_win').height = 192 * BALL_SPEED_FACTOR;
 	 }
 	 
 	/**
@@ -207,7 +215,7 @@
 				if ( ((BALL_Y + BALL_DIRECTION_Y * BALL_SPEED) > PADDLE_Y) && ((BALL_X + BALL_DIRECTION_X * BALL_SPEED) >= PADDLE_X) && ((BALL_X + BALL_DIRECTION_X * BALL_SPEED) <= (PADDLE_X+PADDLE_WIDTH))) {
 					BALL_DIRECTION_Y = -1;
 					BALL_DIRECTION_X = 2*(BALL_X-(PADDLE_X+PADDLE_WIDTH/2))/PADDLE_WIDTH;
-					if (BALL_SPEED < 4) BALL_SPEED+=0.1;
+					if (BALL_SPEED < (4 * BALL_SPEED_FACTOR)) BALL_SPEED+=(0.1 * BALL_SPEED_FACTOR);
 					SCORE += 10
 				}
 			}
@@ -512,7 +520,7 @@
 	function onMenuButton() {
 		// en jeu on relache la balle
 	    if ($('#game').css('display') == 'block') {
-			 if (BALL_SPEED == 0) BALL_SPEED = 1.5;
+			 if (BALL_SPEED == 0) BALL_SPEED = 1.5 * BALL_SPEED_FACTOR;
     	} 
     	// sur le menu on débute le jeu
 	    else if ($('#menu').css('display') === 'block') {
@@ -570,6 +578,7 @@
 	 */
 	function init() {
     	document.addEventListener("deviceready", onDeviceReady, true);
+	    updateScreen();
 	}
 	
 	/**
@@ -604,11 +613,11 @@
 		<!-- page d'accueil -->
 		<div data-role="page" data-theme="a" id="menu">
 			<div data-role="header" data-position="inline"> 
-				<h1>drkNo&iuml;d v1.1</h1>
+				<h1>drkNo&iuml;d v1.2</h1>
 				<a href="#help" data-icon="info" data-iconpos="notext" class="ui-btn-right">Help</a>
 			</div>	
 			<div data-role="content" style="text-align:center">
-				<a href="#game" onclick="initGame()" ><img src="images/title.png" /></a><br/><br/>
+				<a href="#game" onclick="initGame()" ><img id="img_title" src="images/title.png" width="128" height="153" /></a><br/><br/>
 				Pour jouer pressez la touche <em>"menu"</em> de votre t&eacute;l&eacute;phone.<br/>
 			</div>	
 		</div>
@@ -620,7 +629,7 @@
 				<a href="#menu" data-icon="arrow-l" data-iconpos="notext" class="ui-btn-right">Back</a>
 			</div>	
 			<div data-role="content" style="text-align:left">
-				<strong>drkNo&iuml;d v1.1</strong><br/>
+				<strong>drkNo&iuml;d v1.2</strong><br/>
 				par Philippe Bousquet.<br/>
 				<a href="http://darken33.free.fr/">http://darken33.free.fr/</a><br/>
 				<br/>
@@ -661,7 +670,7 @@
 			</div>	
 			<div data-role="content" style="text-align: center;">	
 				Votre score : <strong><span id="score_final">0</span></strong><br/><br/>
-				<img src="images/winner.png" /><br/>
+				<img id="img_win" src="images/winner.png"  width="128" height="192" /><br/>
 			</div>
 		</div>
 
@@ -673,7 +682,7 @@
 			</div>	
 			<div data-role="content" style="text-align: center;">	
 				Votre score : <strong><span id="score_final_p">0</span></strong><br/><br/>
-				<img src="images/loser.png" /><br/>
+				<img id="img_lose" src="images/loser.png"  width="128" height="128" /><br/>
 			</div>
 		</div>
 

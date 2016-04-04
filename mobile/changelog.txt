@@ -1,3 +1,7 @@
+* v1.2
+- Adaptation of the speed of the ball to the size of the screen
+- Adapting images to screen size
+
 * v1.1
 - New Level 6 and 7
 - The ball isn't more blocked indefinitely
